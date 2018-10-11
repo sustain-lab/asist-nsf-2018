@@ -2,7 +2,8 @@
 process_level1.py
 """
 from asist.irgason import read_irgason_from_toa5
-from .experiments import experiments
+from asist_nsf_2018.experiments import experiments
+from datetime import datetime, timedelta
 import glob
 from matplotlib.dates import date2num, num2date
 from netCDF4 import Dataset
@@ -21,7 +22,8 @@ def process_irgason_to_level2():
         'asist-windonly-fresh', 
         'asist-wind-swell-fresh', 
         'asist-windonly-salt', 
-        'asist-wind-swell-salt'
+        'asist-wind-swell-salt',
+        'asist-flow-distortion'
     ]
 
     irgason_files = glob.glob(IRGASON_DATA_PATH + '/TOA5*.dat')
@@ -40,10 +42,17 @@ def process_irgason_to_level2():
         # time in seconds of the day; save origin in nc attribute
         exp_seconds = (date2num(exp_time) - int(date2num(t0))) * 86400
 
+        # fan frequency
         fan = np.zeros(exp_time.size)
         for run in exp.runs:
             run_mask = (exp_time >= run.start_time) & (exp_time <= run.end_time)
             fan[run_mask] = run.fan
+
+        # status flag (0: good; 1: fan spin-up; 2: bad)
+        flag = np.zeros(exp_time.size)
+        for run in exp.runs:
+            run_mask = (exp_time >= run.start_time) & (exp_time < run.start_time + timedelta(seconds=60))
+            flag[run_mask] = 1
 
         ncfile = 'irgason_' + exp_name + '.nc'
         print('Writing ' + ncfile)
@@ -56,6 +65,12 @@ def process_irgason_to_level2():
         var.setncattr('name', 'Time in seconds of the day')
         var.setncattr('units', 's')
         var.setncattr('origin', num2date(int(date2num(t0))).strftime('%Y-%m-%d %H:%M:%S UTC'))
+
+        var = nc.createVariable('flag', 'i4', dimensions=('Time'))
+        var[:] = flag
+        var.setncattr('name', 'Status flag')
+        var.setncattr('description', '0: good; 1: fan spin-up; 2: bad')
+        var.setncattr('units', '')
 
         var = nc.createVariable('fan', 'f4', dimensions=('Time'))
         var[:] = fan
