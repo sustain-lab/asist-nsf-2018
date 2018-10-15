@@ -43,7 +43,8 @@ def process_hotfilm_to_level2():
         else:
             start_time, seconds, ch1, ch2 = read_hotfilm_from_lvm(filename, dt=1e-3)
 
-        seconds = np.array(seconds) + (start_time - datetime(start_time.year, start_time.month, start_time.day)).total_seconds()
+        origin = datetime(start_time.year, start_time.month, start_time.day)
+        seconds = np.array(seconds) + (start_time - origin).total_seconds()
         ch1 = np.array(ch1)
         ch2 = np.array(ch2)
 
@@ -73,7 +74,7 @@ def process_hotfilm_to_level2():
         var[:] = exp_seconds
         var.setncattr('name', 'Time in seconds of the day')
         var.setncattr('units', 's')
-        var.setncattr('origin', num2date(int(t0)).strftime('%Y-%m-%d %H:%M:%S UTC'))
+        var.setncattr('origin', origin.strftime('%Y-%m-%dT%H:%M:%S'))
 
         var = nc.createVariable('fan', 'f4', dimensions=('Time'))
         var[:] = fan
@@ -144,7 +145,7 @@ def process_irgason_to_level2():
         var[:] = exp_seconds
         var.setncattr('name', 'Time in seconds of the day')
         var.setncattr('units', 's')
-        var.setncattr('origin', num2date(int(date2num(t0))).strftime('%Y-%m-%d %H:%M:%S UTC'))
+        var.setncattr('origin', num2date(int(date2num(t0))).strftime('%Y-%m-%dT%H:%M:%S'))
 
         var = nc.createVariable('flag', 'i4', dimensions=('Time'))
         var[:] = flag
