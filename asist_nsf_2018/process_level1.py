@@ -39,28 +39,28 @@ def process_hotfilm_to_level2():
             + exp.runs[0].start_time.strftime('%Y%m%d')  + '.lvm'
 
         if exp_name == 'asist-windonly-fresh_warmup':
-            time, ch1, ch2 = read_hotfilm_from_lvm(filename, dt=2e-3)
+            start_time, seconds, ch1, ch2 = read_hotfilm_from_lvm(filename, dt=2e-3)
         else:
-            time, ch1, ch2 = read_hotfilm_from_lvm(filename, dt=1e-3)
+            start_time, seconds, ch1, ch2 = read_hotfilm_from_lvm(filename, dt=1e-3)
 
-        time = np.array(time)
+        seconds = np.array(seconds) + (start_time - datetime(start_time.year, start_time.month, start_time.day)).total_seconds()
         ch1 = np.array(ch1)
         ch2 = np.array(ch2)
 
         t0 = date2num(exp.runs[0].start_time)
         t1 = date2num(exp.runs[-1].end_time)
-        mask = (time >= t0) & (time <= t1)
 
-        exp_time = time[mask]
+        t0 = (t0 - int(t0)) * 86400
+        t1 = (t1 - int(t1)) * 86400
 
-        # time in seconds of the day; save origin in nc attribute
-        exp_seconds = exp_time - int(t0) * 86400
+        mask = (seconds >= t0) & (seconds <= t1)
+
+        exp_seconds = seconds[mask]
 
         # fan frequency
-        fan = np.zeros(exp_time.size)
+        fan = np.zeros(exp_seconds.size)
         for run in exp.runs:
-            run_mask = (exp_time >= date2num(run.start_time)) \
-                     & (exp_time <= date2num(run.end_time))
+            run_mask = (exp_seconds >= t0) & (exp_seconds <= t1)
             fan[run_mask] = run.fan
 
         ncfile = 'hotfilm_' + exp_name + '.nc'
@@ -86,7 +86,7 @@ def process_hotfilm_to_level2():
         var.setncattr('units', 'V')
 
         var = nc.createVariable('ch2', 'f4', dimensions=('Time'))
-        var[:] = ch1[mask]
+        var[:] = ch2[mask]
         var.setncattr('name', 'Channel 2 voltage')
         var.setncattr('units', 'V')
 
