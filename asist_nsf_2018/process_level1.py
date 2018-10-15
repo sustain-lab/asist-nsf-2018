@@ -2,6 +2,7 @@
 process_level1.py
 """
 from asist.irgason import read_irgason_from_toa5
+from asist.hotfilm import read_hotfilm_from_lvm
 from asist_nsf_2018.experiments import experiments
 from datetime import datetime, timedelta
 import glob
@@ -10,13 +11,92 @@ from netCDF4 import Dataset
 import numpy as np
 import os
 
-try:
-    IRGASON_DATA_PATH = os.environ['IRGASON_DATA_PATH']
-except KeyError:
-    raise KeyError('Set IRGASON_DATA_PATH env variable to the path with IRGASON data')
+
+def get_data_path(data_name):
+    """Gets the data path from the env variable."""
+    assert data_name in ['HOTFILM', 'IRGASON'],\
+        data_name + ' is not available'
+    try:
+        return os.environ[data_name + '_DATA_PATH']
+    except KeyError:
+        raise KeyError('Set ' + data_name + '_DATA_PATH env variable to the path with ' + data_name + ' data')
+
+
+def process_hotfilm_to_level2():
+    """Processes Hot film Labview files into NetCDF."""
+    HOTFILM_DATA_PATH = get_data_path('HOTFILM')
+
+    experiments_to_process = [
+        'asist-windonly-fresh_warmup',
+        'asist-windonly-fresh', 
+        'asist-windonly-salt' 
+    ]
+
+    for exp_name in experiments_to_process:
+        exp = experiments[exp_name]
+
+        filename = HOTFILM_DATA_PATH + '/hot_film_'\
+            + exp.runs[0].start_time.strftime('%Y%m%d')  + '.lvm'
+
+        if exp_name == 'asist-windonly-fresh_warmup':
+            time, ch1, ch2 = read_hotfilm_from_lvm(filename, dt=2e-3)
+        else:
+            time, ch1, ch2 = read_hotfilm_from_lvm(filename, dt=1e-3)
+
+        time = np.array(time)
+        ch1 = np.array(ch1)
+        ch2 = np.array(ch2)
+
+        t0 = date2num(exp.runs[0].start_time)
+        t1 = date2num(exp.runs[-1].end_time)
+        mask = (time >= t0) & (time <= t1)
+
+        exp_time = time[mask]
+
+        # time in seconds of the day; save origin in nc attribute
+        exp_seconds = exp_time - int(t0) * 86400
+
+        # fan frequency
+        fan = np.zeros(exp_time.size)
+        for run in exp.runs:
+            run_mask = (exp_time >= date2num(run.start_time)) \
+                     & (exp_time <= date2num(run.end_time))
+            fan[run_mask] = run.fan
+
+        ncfile = 'hotfilm_' + exp_name + '.nc'
+        print('Writing ' + ncfile)
+
+        nc = Dataset(ncfile, 'w', format='NETCDF4')
+
+        nc.createDimension('Time', size=0)
+        var = nc.createVariable('Time', 'f8', dimensions=('Time'))
+        var[:] = exp_seconds
+        var.setncattr('name', 'Time in seconds of the day')
+        var.setncattr('units', 's')
+        var.setncattr('origin', num2date(int(t0)).strftime('%Y-%m-%d %H:%M:%S UTC'))
+
+        var = nc.createVariable('fan', 'f4', dimensions=('Time'))
+        var[:] = fan
+        var.setncattr('name', 'Fan frequency')
+        var.setncattr('units', 'Hz')
+
+        var = nc.createVariable('ch1', 'f4', dimensions=('Time'))
+        var[:] = ch1[mask]
+        var.setncattr('name', 'Channel 1 voltage')
+        var.setncattr('units', 'V')
+
+        var = nc.createVariable('ch2', 'f4', dimensions=('Time'))
+        var[:] = ch1[mask]
+        var.setncattr('name', 'Channel 2 voltage')
+        var.setncattr('units', 'V')
+
+        nc.close()
+
 
 def process_irgason_to_level2():
     """Processes IRGASON TOA5 files into NetCDF."""
+
+    IRGASON_DATA_PATH = get_data_path('IRGASON')
 
     experiments_to_process = [
         'asist-windonly-fresh', 
