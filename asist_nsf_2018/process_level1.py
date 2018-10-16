@@ -3,6 +3,8 @@ process_level1.py
 """
 from asist.irgason import read_irgason_from_toa5
 from asist.hotfilm import read_hotfilm_from_lvm
+from asist.pressure import read_pressure_from_toa5
+from asist.pitot import pitot_velocity
 from asist_nsf_2018.experiments import experiments
 from datetime import datetime, timedelta
 import glob
@@ -14,7 +16,7 @@ import os
 
 def get_data_path(data_name):
     """Gets the data path from the env variable."""
-    assert data_name in ['HOTFILM', 'IRGASON'],\
+    assert data_name in ['HOTFILM', 'IRGASON', 'PRESSURE'],\
         data_name + ' is not available'
     try:
         return os.environ[data_name + '_DATA_PATH']
@@ -100,6 +102,7 @@ def process_irgason_to_level2():
     IRGASON_DATA_PATH = get_data_path('IRGASON')
 
     experiments_to_process = [
+        'asist-windonly-fresh_warmup', 
         'asist-windonly-fresh', 
         'asist-wind-swell-fresh', 
         'asist-windonly-salt', 
@@ -107,9 +110,9 @@ def process_irgason_to_level2():
         'asist-flow-distortion'
     ]
 
-    irgason_files = glob.glob(IRGASON_DATA_PATH + '/TOA5*.dat')
-    irgason_files.sort()
-    time, u, v, w, Ts, Tc, Pc, RH = read_irgason_from_toa5(irgason_files)
+    files = glob.glob(IRGASON_DATA_PATH + '/TOA5*.dat')
+    files.sort()
+    time, u, v, w, Ts, Tc, Pc, RH = read_irgason_from_toa5(files)
 
     for exp_name in experiments_to_process:
 
@@ -192,5 +195,93 @@ def process_irgason_to_level2():
         var[:] = RH[mask]
         var.setncattr('name', 'Relative humidity')
         var.setncattr('units', '%')
+
+        nc.close()
+
+
+def process_pitot_to_level2():
+    """Processes MKS pressure difference from TOA5 files 
+    into pitot tube velocity and writes it to NetCDF."""
+
+    PRESSURE_DATA_PATH = get_data_path('PRESSURE')
+
+    experiments_to_process = [
+        'asist-windonly-fresh_warmup',
+        'asist-windonly-fresh', 
+        'asist-wind-swell-fresh', 
+        'asist-windonly-salt', 
+        'asist-wind-swell-salt'
+    ]
+
+    files = glob.glob(PRESSURE_DATA_PATH + '/TOA5*.dat')
+    files.sort()
+    time, dp = read_pressure_from_toa5(files)
+
+    # remove offset from pressure before computing velocity
+    for exp_name in experiments_to_process:
+        exp = experiments[exp_name]
+        t0 = exp.runs[0].start_time
+        t1 = exp.runs[0].end_time - timedelta(seconds=60)
+        mask = (time >= t0) & (time <= t1)
+        dp_offset = np.mean(dp[mask])
+        for run in exp.runs:
+            run_mask = (time >= run.start_time) & (time <= run.end_time)
+            dp[run_mask] -= dp_offset
+
+    dp[dp < 0] = 0
+
+    air_density = 1.1554 # at 30 deg. C and 90% RH
+    u = pitot_velocity(dp, air_density)
+
+    for exp_name in experiments_to_process:
+
+        exp = experiments[exp_name]
+        t0 = exp.runs[0].start_time
+        t1 = exp.runs[-1].end_time
+        mask = (time >= t0) & (time <= t1)
+  
+        exp_time = time[mask]
+
+        # time in seconds of the day; save origin in nc attribute
+        exp_seconds = (date2num(exp_time) - int(date2num(t0))) * 86400
+
+        # fan frequency
+        fan = np.zeros(exp_time.size)
+        for run in exp.runs:
+            run_mask = (exp_time >= run.start_time) & (exp_time <= run.end_time)
+            fan[run_mask] = run.fan
+
+        # status flag (0: good; 1: fan spin-up; 2: bad)
+        flag = np.zeros(exp_time.size)
+        for run in exp.runs:
+            run_mask = (exp_time >= run.start_time) & (exp_time < run.start_time + timedelta(seconds=60))
+            flag[run_mask] = 1
+
+        ncfile = 'pitot_' + exp_name + '.nc'
+        print('Writing ' + ncfile)
+
+        nc = Dataset(ncfile, 'w', format='NETCDF4')
+
+        nc.createDimension('Time', size=0)
+        var = nc.createVariable('Time', 'f8', dimensions=('Time'))
+        var[:] = exp_seconds
+        var.setncattr('name', 'Time in seconds of the day')
+        var.setncattr('units', 's')
+        var.setncattr('origin', num2date(int(date2num(t0))).strftime('%Y-%m-%dT%H:%M:%S'))
+
+        var = nc.createVariable('fan', 'f4', dimensions=('Time'))
+        var[:] = fan
+        var.setncattr('name', 'Fan frequency')
+        var.setncattr('units', 'Hz')
+
+        var = nc.createVariable('u', 'f4', dimensions=('Time'))
+        var[:] = u[mask]
+        var.setncattr('name', 'Pitot velocity')
+        var.setncattr('units', 'm/s')
+
+        var = nc.createVariable('dp', 'f4', dimensions=('Time'))
+        var[:] = dp[mask]
+        var.setncattr('name', 'Pressure difference')
+        var.setncattr('units', 'Pa')
 
         nc.close()
