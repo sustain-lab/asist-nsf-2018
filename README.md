@@ -14,3 +14,4 @@ pip install --process-dependency-links git+https://github.com/sustain-lab/asist-
 * [Processing IRGASON data to NetCDF](https://github.com/sustain-lab/asist-nsf-2018/blob/master/notebooks/processing-irgason-L1-to-L2.ipynb)
 * [Processing hot-film data to NetCDF](https://github.com/sustain-lab/asist-nsf-2018/blob/master/notebooks/processing-hotfilm-L1-to-L2.ipynb)
 * [Processing pitot data to NetCDF](https://github.com/sustain-lab/asist-nsf-2018/blob/master/notebooks/processing-pitot-L1-to-L2.ipynb)
+* [Fitting hotfilm data to pitot](https://github.com/sustain-lab/asist-nsf-2018/blob/master/notebooks/fitting-hotfilm-to-pitot.ipynb)
