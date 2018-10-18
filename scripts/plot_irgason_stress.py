@@ -11,7 +11,7 @@ import os
 import matplotlib.pyplot as plt
 
 # path to L2 data
-IRGASON_DATA_PATH = os.environ['IRGASON_DATA_PATH']
+L2_DATA_PATH = os.environ['L2_DATA_PATH']
 
 # experiments to process
 exp_names = [
@@ -27,7 +27,7 @@ for exp_name in exp_names:
     exp = experiments[exp_name]
 
     # read IRGASON data
-    data = read_irgason_from_netcdf(IRGASON_DATA_PATH + '/irgason_' + exp_name + '.nc')
+    data = read_irgason_from_netcdf(L2_DATA_PATH + '/irgason_' + exp_name + '.nc')
     t, u, v, w, fan, flag = data['time'], data['u'], data['v'], data['w'], data['fan'], data['flag']
 
     # first clean out velocities that exceed percentile range
