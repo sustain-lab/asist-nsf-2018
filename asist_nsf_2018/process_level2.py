@@ -25,9 +25,9 @@ def clean_hotfilm_exp1(exp, ch1, ch2):
     ch2_min = {45: 1.75, 50: 1.80, 55: 1.88, 60: 1.93}
 
     for run in exp.runs[9:13]:
-        print(run.fan)
         t0 = run.start_time + timedelta(seconds=1)
         t1 = run.end_time - timedelta(seconds=1)
+        origin = datetime(t0.year, t0.month, t0.day)
         t0_seconds = (t0 - origin).total_seconds()
         t1_seconds = (t1 - origin).total_seconds()
         n0 = np.argmin((hotfilm_seconds - t0_seconds)**2)
@@ -61,9 +61,9 @@ def clean_hotfilm_exp3(exp, ch1, ch2):
     ch2_min = {45: 1.71, 50: 1.76, 55: 1.84, 60: 1.88}
 
     for run in exp.runs[9:13]:
-        print(run.fan)
         t0 = run.start_time + timedelta(seconds=1)
         t1 = run.end_time - timedelta(seconds=1)
+        origin = datetime(t0.year, t0.month, t0.day)
         t0_seconds = (t0 - origin).total_seconds()
         t1_seconds = (t1 - origin).total_seconds()
         n0 = np.argmin((hotfilm_seconds - t0_seconds)**2)
