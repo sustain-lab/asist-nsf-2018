@@ -23,7 +23,7 @@ exp = experiments[exp_name]
 origin, hotfilm_seconds, fan, ch1, ch2 = read_hotfilm_from_netcdf(L2_DATA_PATH + '/hotfilm_' + exp_name + '.nc')
 origin, pitot_seconds, fan, u = read_pitot_from_netcdf(L2_DATA_PATH + '/pitot_' + exp_name + '.nc')
 
-ch1, ch2 = clean_hotfilm_exp3(exp, ch1, ch2)
+ch1, ch2 = clean_hotfilm_exp3(exp, ch1, ch2, hotfilm_seconds)
 
 # start and end time of fitting period
 t0 = exp.runs[1].start_time + timedelta(seconds=60)
@@ -51,9 +51,8 @@ p2 = np.polyfit(ch2_binavg, pitot, 4)
 veff1 = p1[4] + p1[3] * ch1 + p1[2] * ch1**2 + p1[1] * ch1**3 + p1[0] * ch1**4
 veff2 = p2[4] + p2[3] * ch2 + p2[2] * ch2**2 + p2[1] * ch2**3 + p2[0] * ch2**4 
 
-u, w = hotfilm_velocity(veff2, veff1, k1=0., k2=0.)
+u, w = hotfilm_velocity(veff2, veff1)
 u, w = u.filled(0), w.filled(0) # masked values should be zero
-
 
 # averaging over full runs (5 minutes)
 U, W, uw = [], [], []
