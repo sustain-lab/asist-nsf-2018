@@ -4,7 +4,7 @@ process_level2.py
 from datetime import datetime, timedelta
 import numpy as np
 
-def clean_hotfilm_exp1(exp, ch1, ch2):
+def clean_hotfilm_exp1(exp, ch1, ch2, hotfilm_seconds):
     """Cleans channels 1 and 2 for asist-windonly-fresh experiment."""
 
     # treat first spike on channel 1;
@@ -40,7 +40,7 @@ def clean_hotfilm_exp1(exp, ch1, ch2):
     return ch1, ch2
 
 
-def clean_hotfilm_exp3(exp, ch1, ch2):
+def clean_hotfilm_exp3(exp, ch1, ch2, hotfilm_seconds):
     """Cleans channels 1 and 2 for asist-windonly-salt experiment."""
 
     # treat first spike on channel 1;
