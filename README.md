@@ -16,3 +16,7 @@ pip install --process-dependency-links git+https://github.com/sustain-lab/asist-
 * [Processing pitot data to NetCDF](https://github.com/sustain-lab/asist-nsf-2018/blob/master/notebooks/processing-pitot-L1-to-L2.ipynb)
 * Fitting hotfilm data to pitot, [fresh](https://github.com/sustain-lab/asist-nsf-2018/blob/master/notebooks/fitting-hotfilm-to-pitot-fresh.ipynb) 
 and [salt](https://github.com/sustain-lab/asist-nsf-2018/blob/master/notebooks/fitting-hotfilm-to-pitot-salt.ipynb) water
+
+## Instruments
+
+![](assets/lab-instruments-diagram.png)
