@@ -215,7 +215,7 @@ def process_pitot_to_level2():
 
     files = glob.glob(PRESSURE_DATA_PATH + '/TOA5*.dat')
     files.sort()
-    time, dp = read_pressure_from_toa5(files)
+    time, dp1, dp2 = read_pressure_from_toa5(files)
 
     # remove offset from pressure before computing velocity
     for exp_name in experiments_to_process:
@@ -223,15 +223,16 @@ def process_pitot_to_level2():
         t0 = exp.runs[0].start_time
         t1 = exp.runs[0].end_time - timedelta(seconds=60)
         mask = (time >= t0) & (time <= t1)
-        dp_offset = np.mean(dp[mask])
+        dp1_offset = np.mean(dp1[mask])
+        dp2_offset = np.mean(dp2[mask])
         for run in exp.runs:
             run_mask = (time >= run.start_time) & (time <= run.end_time)
-            dp[run_mask] -= dp_offset
+            dp1[run_mask] -= dp1_offset
+            dp2[run_mask] -= dp2_offset
 
-    dp[dp < 0] = 0
-
+    dp1[dp1 < 0] = 0
     air_density = 1.1554 # at 30 deg. C and 90% RH
-    u = pitot_velocity(dp, air_density)
+    u = pitot_velocity(dp1, air_density)
 
     for exp_name in experiments_to_process:
 
@@ -279,9 +280,14 @@ def process_pitot_to_level2():
         var.setncattr('name', 'Pitot velocity')
         var.setncattr('units', 'm/s')
 
-        var = nc.createVariable('dp', 'f4', dimensions=('Time'))
-        var[:] = dp[mask]
-        var.setncattr('name', 'Pressure difference')
+        var = nc.createVariable('dp_pitot', 'f4', dimensions=('Time'))
+        var[:] = dp1[mask]
+        var.setncattr('name', 'Pitot pressure difference')
+        var.setncattr('units', 'Pa')
+
+        var = nc.createVariable('dp_alongtank', 'f4', dimensions=('Time'))
+        var[:] = dp2[mask]
+        var.setncattr('name', 'Along-tank pressure difference')
         var.setncattr('units', 'Pa')
 
         nc.close()
