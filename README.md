@@ -21,6 +21,25 @@ and [salt](https://github.com/sustain-lab/asist-nsf-2018/blob/master/notebooks/f
 
 ![](assets/lab-instruments-diagram.png)
 
+Instrument | Fetch [m] | Height [m] | Depth [m] | Frequency [Hz]
+----------------|------|------|------|-----
+Pressure 1      | 3.28 | -    | 0.16 | 10
+Pressure 2      | 9.40 | -    | 0.18 | 10
+Hotfilm         | 4.66 | 0.29 | -    | 1000
+Pitot tube      | 4.69 | 0.29 | -    | 10
+IRGASON         | 6.12 | 0.29 | -    | 20
+Slope gauge     | 3.47 | -    | -    | 
+Elevation gauge | 3.47 | -    | -    |
+Wave probe 3    | 6.02 | -    | -    | 100
+Wave probe 4    | 6.02 | -    | -    | 100
+Wave probe 6    | 8.71 | -    | -    | 100
+Vectrino        | 7.82 | -    | 0.005 - 0.045 | 
+Polarimeter     | 5.00 | -    |      | 
+IR Camera       | 5.29 | -    | -    | 
+Shadowgraph     | 5.00 | -    | ~0.1 | 
+DPIV            | 4.31 | -    | ~0.4 - 0 | 
+CTD             | 4.77 | -    | 0.02 | 
+
 ## Experiments
 
 All times are in UTC.
