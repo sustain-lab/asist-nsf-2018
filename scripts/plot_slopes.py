@@ -71,7 +71,7 @@ exp_names = [
     'asist-wind-swell-salt'
     ]
 
-exp_name = exp_names[0]
+exp_name = exp_names[1]
 exp = experiments[exp_name]
 
 start_time, time, eta3 = read_wave_probe_csv(path + '/' + exp_name + '/ch3.csv')
@@ -82,11 +82,16 @@ frequency = 100 # Hz
 run_length = 360 # s
 
 if exp_name == 'asist-windonly-fresh':
-    start_index_10Hz = 241500
+    known_index = 241500
+    start_index_fan = 10
+elif exp_name == 'asist-wind-swell-fresh':
+    known_index = 430000
+    start_index_fan = 60
 else:
     raise NotImplementedError()
 
-start_index = start_index_10Hz - 2 * run_length * frequency
+start_index = known_index - (start_index_fan // 5) * run_length * frequency
+start_index = 0 if start_index < 0 else start_index
 
 fan, swh3, mwp3, Sxx3 = [], [], [], []
 for n, run in enumerate(exp.runs[:-1]):
@@ -112,7 +117,6 @@ for n, run in enumerate(exp.runs[:-1]):
     swh6.append(sig_wave_height(F, df))
     mwp6.append(mean_wave_period(F, f, df))
     Sxx6.append(0.5 * wave_energy(F, df))
-
 
 
 fan, h3 = mean_water_height(eta3, exp, start_index)
@@ -145,21 +149,6 @@ plt.title(exp_name)
 plt.savefig('swh_' + exp_name + '.png', dpi=100)
 plt.close(fig)
 
-
-fig = plt.figure(figsize=(8, 6))
-ax = fig.add_subplot(111)
-plt.plot(fan, mwp3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
-plt.plot(fan, mwp4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
-plt.plot(fan, mwp6, color='r', marker='.', ms=12, label='Fetch 8.7 m')
-plt.legend(loc='upper left', fancybox=True, shadow=True)
-plt.grid()
-plt.xlabel('Fan speed [Hz]')
-plt.ylabel('Mean wave height [s]')
-plt.title(exp_name)
-plt.savefig('mwp_' + exp_name + '.png', dpi=100)
-plt.close(fig)
-
-
 fig = plt.figure(figsize=(8, 6))
 ax = fig.add_subplot(111)
 plt.plot(fan, mwp3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
@@ -172,7 +161,6 @@ plt.ylabel('Mean wave period [s]')
 plt.title(exp_name)
 plt.savefig('mwp_' + exp_name + '.png', dpi=100)
 plt.close(fig)
-
 
 fig = plt.figure(figsize=(8, 6))
 ax = fig.add_subplot(111)
@@ -197,5 +185,3 @@ plt.ylabel(r'$\dfrac{\partial S_{xx}}{\partial x}$')
 plt.title(exp_name)
 plt.savefig('radiation_stress_gradient_' + exp_name + '.png', dpi=100)
 plt.close(fig)
-
-
