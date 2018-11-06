@@ -3,10 +3,12 @@
 from asist_nsf_2018.experiments import experiments
 from asist.wave_probe import read_wave_probe_csv
 from asist.utility import running_mean
+from asist.pressure import read_pressure_from_netcdf
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 from scipy.signal import detrend
+from datetime import datetime, timedelta
 
 plt.rcParams.update({'font.size': 16})
 
@@ -35,10 +37,6 @@ def mean_wave_period(F, f, df):
     """First-order mean wave period [s]."""
     return np.sum(F * df) / np.sum(F * f * df)
 
-def mean_wave_period2(F, f, df):
-    """Zero-crossing mean wave period [s]."""
-    return np.sqrt(np.sum(F * df) / np.sum(F * f**2 * df))
-
 def wave_energy(F, df, rhow=1030, g=9.8):
     """Returns total wave energy."""
     return rhow * g * np.sum(F * df)
@@ -60,8 +58,19 @@ def mean_slope(h1, h2, dx, rhow=1030, g=9.8, depth=0.42):
     hmean = 0.5 * (h1 + h2) + depth
     return rhow * g * hmean * (h2 - h1) / dx
 
+def get_wave_properties(eta, exp, start_index):
+    fan, swh, mwp, Sxx = [], [], [], []
+    for n, run in enumerate(exp.runs[:-1]):
+        e = get_run_elevations(eta, start_index, n)
+        F, f, df = variance_spectrum(e, 100)
+        fan.append(run.fan)
+        swh.append(sig_wave_height(F, df))
+        mwp.append(mean_wave_period(F, f, df))
+        Sxx.append(0.5 * wave_energy(F, df))
+    return np.array(fan), np.array(swh), np.array(mwp), np.array(Sxx)
 
 path = os.environ['WAVEPROBE_DATA_PATH']
+L2_DATA_PATH = os.environ['L2_DATA_PATH']
 
 # experiments to process
 exp_names = [
@@ -71,117 +80,123 @@ exp_names = [
     'asist-wind-swell-salt'
     ]
 
-exp_name = exp_names[1]
-exp = experiments[exp_name]
-
-start_time, time, eta3 = read_wave_probe_csv(path + '/' + exp_name + '/ch3.csv')
-start_time, time, eta4 = read_wave_probe_csv(path + '/' + exp_name + '/ch4.csv')
-start_time, time, eta6 = read_wave_probe_csv(path + '/' + exp_name + '/ch6.csv')
-
 frequency = 100 # Hz
 run_length = 360 # s
+dx = 2.7 # distance between probes
+dx_pressure = 6.12 # distance between pressure ports
 
-if exp_name == 'asist-windonly-fresh':
-    known_index = 241500
-    start_index_fan = 10
-elif exp_name == 'asist-wind-swell-fresh':
-    known_index = 430000
-    start_index_fan = 60
-else:
-    raise NotImplementedError()
+for exp_name in exp_names:
 
-start_index = known_index - (start_index_fan // 5) * run_length * frequency
-start_index = 0 if start_index < 0 else start_index
+    if exp_name == 'asist-windonly-fresh':
+        known_index = 241500
+        start_index_fan = 10
+    elif exp_name == 'asist-wind-swell-fresh':
+        known_index = 430000
+        start_index_fan = 60
+    elif exp_name == 'asist-windonly-salt':
+        known_index = 449000
+        start_index_fan = 60
+    elif exp_name == 'asist-wind-swell-salt':
+        known_index = 426000
+        start_index_fan = 60
+    else:
+        raise NotImplementedError()
 
-fan, swh3, mwp3, Sxx3 = [], [], [], []
-for n, run in enumerate(exp.runs[:-1]):
-    eta = get_run_elevations(eta3, start_index, n)
-    F, f, df = variance_spectrum(eta, 100)
-    fan.append(run.fan)
-    swh3.append(sig_wave_height(F, df))
-    mwp3.append(mean_wave_period(F, f, df))
-    Sxx3.append(0.5 * wave_energy(F, df))
+    exp = experiments[exp_name]
 
-swh4, mwp4, Sxx4 = [], [], []
-for n, run in enumerate(exp.runs[:-1]):
-    eta = get_run_elevations(eta4, start_index, n)
-    F, f, df = variance_spectrum(eta, 100)
-    swh4.append(sig_wave_height(F, df))
-    mwp4.append(mean_wave_period(F, f, df))
-    Sxx4.append(0.5 * wave_energy(F, df))
+    start_time, time, eta3 = read_wave_probe_csv(path + '/' + exp_name + '/ch3.csv')
+    start_time, time, eta4 = read_wave_probe_csv(path + '/' + exp_name + '/ch4.csv')
+    start_time, time, eta6 = read_wave_probe_csv(path + '/' + exp_name + '/ch6.csv')
 
-swh6, mwp6, Sxx6 = [], [], []
-for n, run in enumerate(exp.runs[:-1]):
-    eta = get_run_elevations(eta6, start_index, n)
-    F, f, df = variance_spectrum(eta, 100)
-    swh6.append(sig_wave_height(F, df))
-    mwp6.append(mean_wave_period(F, f, df))
-    Sxx6.append(0.5 * wave_energy(F, df))
+    start_index = known_index - (start_index_fan // 5)\
+                              * run_length * frequency
+    start_index = 0 if start_index < 0 else start_index
 
+    fan, swh3, mwp3, Sxx3 = get_wave_properties(eta3, exp, start_index)
+    fan, swh4, mwp4, Sxx4 = get_wave_properties(eta4, exp, start_index)
+    fan, swh6, mwp6, Sxx6 = get_wave_properties(eta6, exp, start_index)
 
-fan, h3 = mean_water_height(eta3, exp, start_index)
-fan, h4 = mean_water_height(eta4, exp, start_index)
-fan, h6 = mean_water_height(eta6, exp, start_index)
+    fan, h3 = mean_water_height(eta3, exp, start_index)
+    fan, h4 = mean_water_height(eta4, exp, start_index)
+    fan, h6 = mean_water_height(eta6, exp, start_index)
 
-dx = 2.7
+    # mean slopes
+    s3 = mean_slope(h3, h6, dx)
+    s4 = mean_slope(h4, h6, dx)
 
-# mean slopes
-s3 = mean_slope(h3, h6, dx)
-s4 = mean_slope(h4, h6, dx)
+    # radiation stress
+    Sxx3, Sxx4, Sxx6 = map(np.array, [Sxx3, Sxx4, Sxx6])
 
-# radiation stress
-Sxx3, Sxx4, Sxx6 = map(np.array, [Sxx3, Sxx4, Sxx6])
+    # radiation stress gradient
+    dSdx3 = (Sxx6 - Sxx3) / dx
+    dSdx4 = (Sxx6 - Sxx4) / dx
 
-# radiation stress gradient
-dSdx3 = (Sxx6 - Sxx3) / dx
-dSdx4 = (Sxx6 - Sxx4) / dx
+    # pressure gradient
+    origin, seconds, _, dp = read_pressure_from_netcdf(L2_DATA_PATH + '/pitot_' + exp_name + '.nc')
 
-fig = plt.figure(figsize=(8, 6))
-ax = fig.add_subplot(111)
-plt.plot(fan, swh3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
-plt.plot(fan, swh4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
-plt.plot(fan, swh6, color='r', marker='.', ms=12, label='Fetch 8.7 m')
-plt.legend(loc='upper left', fancybox=True, shadow=True)
-plt.grid()
-plt.xlabel('Fan speed [Hz]')
-plt.ylabel('Sig. wave height [m]')
-plt.title(exp_name)
-plt.savefig('swh_' + exp_name + '.png', dpi=100)
-plt.close(fig)
+    dp[dp > 600] = np.nan
+    dp[dp < -600] = np.nan
 
-fig = plt.figure(figsize=(8, 6))
-ax = fig.add_subplot(111)
-plt.plot(fan, mwp3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
-plt.plot(fan, mwp4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
-plt.plot(fan, mwp6, color='r', marker='.', ms=12, label='Fetch 8.7 m')
-plt.legend(loc='upper left', fancybox=True, shadow=True)
-plt.grid()
-plt.xlabel('Fan speed [Hz]')
-plt.ylabel('Mean wave period [s]')
-plt.title(exp_name)
-plt.savefig('mwp_' + exp_name + '.png', dpi=100)
-plt.close(fig)
+    dpm, f = [], []
+    for run in exp.runs[:-1]:
+        t0 = run.start_time + timedelta(seconds=30)
+        t1 = run.end_time - timedelta(seconds=30)
+        t0_seconds = (t0 - origin).total_seconds()
+        t1_seconds = (t1 - origin).total_seconds()
+        mask = (seconds > t0_seconds) & (seconds < t1_seconds)
+        dpm.append(np.mean(dp[mask]))
+        f.append(run.fan)
+    dpm = np.array(dpm)
 
-fig = plt.figure(figsize=(8, 6))
-ax = fig.add_subplot(111)
-plt.plot(fan, s3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
-plt.plot(fan, s4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
-plt.legend(loc='upper left', fancybox=True, shadow=True)
-plt.grid()
-plt.xlabel('Fan speed [Hz]')
-plt.ylabel('Mean slope')
-plt.title(exp_name)
-plt.savefig('slope_' + exp_name + '.png', dpi=100)
-plt.close(fig)
+    dpdx = dpm / dx_pressure
 
-fig = plt.figure(figsize=(8, 6))
-ax = fig.add_subplot(111)
-plt.plot(fan, dSdx3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
-plt.plot(fan, dSdx4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
-plt.legend(loc='upper left', fancybox=True, shadow=True)
-plt.grid()
-plt.xlabel('Fan speed [Hz]')
-plt.ylabel(r'$\dfrac{\partial S_{xx}}{\partial x}$')
-plt.title(exp_name)
-plt.savefig('radiation_stress_gradient_' + exp_name + '.png', dpi=100)
-plt.close(fig)
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, ylim=(0, 0.35))
+    plt.plot(fan, swh3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
+    plt.plot(fan, swh4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
+    plt.plot(fan, swh6, color='r', marker='.', ms=12, label='Fetch 8.7 m')
+    plt.legend(loc='upper left', fancybox=True, shadow=True)
+    plt.grid()
+    plt.xlabel('Fan speed [Hz]')
+    plt.ylabel('Sig. wave height [m]')
+    plt.title(exp_name)
+    plt.savefig('swh_' + exp_name + '.png', dpi=100)
+    plt.close(fig)
+
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, ylim=(0, 1))
+    plt.plot(fan, mwp3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
+    plt.plot(fan, mwp4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
+    plt.plot(fan, mwp6, color='r', marker='.', ms=12, label='Fetch 8.7 m')
+    plt.legend(loc='lower right', fancybox=True, shadow=True)
+    plt.grid()
+    plt.xlabel('Fan speed [Hz]')
+    plt.ylabel('Mean wave period [s]')
+    plt.title(exp_name)
+    plt.savefig('mwp_' + exp_name + '.png', dpi=100)
+    plt.close(fig)
+
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, ylim=(-20, 60))
+    plt.plot(fan, s3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
+    plt.plot(fan, s4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
+    plt.plot(fan, dpdx, color='k', marker='.', ms=12, label='dp/dx')
+    plt.legend(loc='upper left', fancybox=True, shadow=True)
+    plt.grid()
+    plt.xlabel('Fan speed [Hz]')
+    plt.ylabel('Mean slope')
+    plt.title(exp_name)
+    plt.savefig('slope_' + exp_name + '.png', dpi=100)
+    plt.close(fig)
+
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, ylim=(-8, 4))
+    plt.plot(fan, dSdx3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
+    plt.plot(fan, dSdx4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
+    plt.legend(loc='upper left', fancybox=True, shadow=True)
+    plt.grid()
+    plt.xlabel('Fan speed [Hz]')
+    plt.ylabel(r'$\dfrac{\partial S_{xx}}{\partial x}$')
+    plt.title(exp_name)
+    plt.savefig('Sxx_gradient_' + exp_name + '.png', dpi=100)
+    plt.close(fig)

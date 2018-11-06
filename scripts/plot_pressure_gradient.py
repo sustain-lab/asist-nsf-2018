@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Processes raw hotfilm voltages to velocities.
+Processes pressure gradients from MKS.
 """
 from asist_nsf_2018.experiments import experiments
 from asist.utility import binavg, limit_to_percentile_range, running_mean
@@ -22,7 +22,7 @@ exp_names = [
     ]
 
 # distance between 2 pressure ports
-dx = 8 * 0.77
+dx = 6.12
 
 col = ['b', 'g', 'r', 'm']
 
