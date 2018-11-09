@@ -51,7 +51,7 @@ def mean_water_height(eta, exp, start_index):
             h.append(0)
         else:
             h.append(np.mean(e) - offset)
-    return fan, h
+    return np.array(fan), np.array(h)
 
 def mean_slope(h1, h2, dx, rhow=1030, g=9.8, depth=0.42):
     h1, h2 = np.array(h1), np.array(h2)
@@ -151,7 +151,7 @@ for exp_name in exp_names:
     dpdx = dpm / dx_pressure
 
     fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, ylim=(0, 0.35))
+    ax = fig.add_subplot(111, xlim=(0, 60), ylim=(0, 0.35))
     plt.plot(fan, swh3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
     plt.plot(fan, swh4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
     plt.plot(fan, swh6, color='r', marker='.', ms=12, label='Fetch 8.7 m')
@@ -164,7 +164,7 @@ for exp_name in exp_names:
     plt.close(fig)
 
     fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, ylim=(0, 1))
+    ax = fig.add_subplot(111, xlim=(0, 60), ylim=(0, 1))
     plt.plot(fan, mwp3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
     plt.plot(fan, mwp4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
     plt.plot(fan, mwp6, color='r', marker='.', ms=12, label='Fetch 8.7 m')
@@ -177,7 +177,7 @@ for exp_name in exp_names:
     plt.close(fig)
 
     fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, ylim=(-20, 60))
+    ax = fig.add_subplot(111, xlim=(0, 60), ylim=(-20, 60))
     plt.plot(fan, s3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
     plt.plot(fan, s4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
     plt.plot(fan, dpdx, color='k', marker='.', ms=12, label='dp/dx')
@@ -190,13 +190,47 @@ for exp_name in exp_names:
     plt.close(fig)
 
     fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, ylim=(-8, 4))
+    ax = fig.add_subplot(111,xlim=(0, 60),  ylim=(-8, 4))
     plt.plot(fan, dSdx3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
     plt.plot(fan, dSdx4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
+    plt.plot([0, 60], [0, 0], 'k--')
     plt.legend(loc='upper left', fancybox=True, shadow=True)
     plt.grid()
     plt.xlabel('Fan speed [Hz]')
     plt.ylabel(r'$\dfrac{\partial S_{xx}}{\partial x}$')
     plt.title(exp_name)
     plt.savefig('Sxx_gradient_' + exp_name + '.png', dpi=100)
+    plt.close(fig)
+
+
+    tau3 = s3 + dSdx3 + 0.5 * (h3 + h6) * dpdx
+    tau4 = s4 + dSdx4 + 0.5 * (h4 + h6) * dpdx
+
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111,xlim=(0, 60),  ylim=(-20, 60))
+    plt.plot(fan, tau3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
+    plt.plot(fan, tau4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
+    plt.legend(loc='upper left', fancybox=True, shadow=True)
+    plt.grid()
+    plt.xlabel('Fan speed [Hz]')
+    plt.ylabel(r'$\tau$')
+    plt.title(exp_name)
+    plt.savefig('tau_' + exp_name + '.png', dpi=100)
+    plt.close(fig)
+
+    rhoa = 1.2
+    cd3 = tau3 / (rhoa * fan**2)
+    cd4 = tau4 / (rhoa * fan**2)
+
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, xlim=(0, 60), ylim=(-2e-2, 2e-2))
+    plt.plot(fan, cd3, color='b', marker='.', ms=12, label='Fetch 6 m, left')
+    plt.plot(fan, cd4, color='g', marker='.', ms=12, label='Fetch 6 m, right')
+    plt.plot([0, 60], [0, 0], 'k--')
+    plt.legend(loc='lower right', fancybox=True, shadow=True)
+    plt.grid()
+    plt.xlabel('Fan speed [Hz]')
+    plt.ylabel(r'$C_D$')
+    plt.title(exp_name)
+    plt.savefig('cd_' + exp_name + '.png', dpi=100)
     plt.close(fig)

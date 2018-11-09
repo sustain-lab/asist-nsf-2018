@@ -10,6 +10,12 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
+def rotate(u, w, th):
+    """Rotates the vector (u, w) by angle th."""
+    ur =  np.cos(th) * u + np.sin(th) * w
+    wr = -np.sin(th) * u + np.cos(th) * w
+    return ur, wr
+
 # path to L2 data
 L2_DATA_PATH = os.environ['L2_DATA_PATH']
 
@@ -42,28 +48,20 @@ for exp_name in exp_names:
 
     fan_settings = np.arange(0, 65, 5)
 
-    um = []
-    wm = []
-    uw = []
+    U, W, uw = [], [], []
     for run in exp.runs[:-1]:
         mask = (t > run.start_time + timedelta(seconds=60))\
              & (t < run.end_time)
-        umean = np.mean(u[mask])
-        wmean = np.mean(w[mask])
-        th = np.arctan2(wmean, umean)
-        ur =  np.cos(th) * u[mask] + np.sin(th) * w[mask]
-        wr = -np.sin(th) * u[mask] + np.cos(th) * w[mask]
-        umean = np.mean(ur)
-        wmean = np.mean(wr)
-        up = ur - umean
-        wp = wr - wmean
-        um.append(umean)
-        wm.append(wmean)
+        um = np.mean(u[mask])
+        wm = np.mean(w[mask])
+        th = np.arctan2(wm, um)
+        ur, wr = rotate(u[mask], w[mask], th)
+        um, wm = np.mean(ur), np.mean(wr)
+        up, wp = ur - um, wr - wm
+        U.append(um)
+        W.append(wm)
         uw.append(np.mean(up * wp))
-
-    um = np.array(um)
-    wm = np.array(wm)
-    uw = np.array(uw)
+    U, W, uw = map(np.array, [U, W, uw])
 
     cd = uw / um**2
 
