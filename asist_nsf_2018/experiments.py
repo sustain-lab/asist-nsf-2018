@@ -9,6 +9,7 @@ run_length = timedelta(seconds=360)
 
 # Exp0 (pre-experiment) on 2018-09-24
 exp0 = Experiment('asist-windonly-fresh-warmup')
+exp0.water_depth = 0.42
 exp_start_time = datetime(2018, 9, 24, 19, 10, 0)
 for n, f in enumerate(fan):
     start_time = exp_start_time + run_length * n
@@ -17,6 +18,7 @@ for n, f in enumerate(fan):
 
 # Exp1 (fresh water, wind only) on 2018-09-26
 exp1 = Experiment('asist-windonly-fresh')
+exp1.water_depth = 0.42
 exp_start_time = datetime(2018, 9, 26, 19, 18, 0)
 for n, f in enumerate(fan):
     start_time = exp_start_time + run_length * n
@@ -25,6 +27,7 @@ for n, f in enumerate(fan):
 
 # Exp2 (fresh water, wind and swell) on 2018-09-27
 exp2 = Experiment('asist-wind-swell-fresh')
+exp2.water_depth = 0.42
 exp_start_time = datetime(2018, 9, 27, 14, 42, 0)
 for n, f in enumerate(fan):
     start_time = exp_start_time + run_length * n
@@ -33,6 +36,7 @@ for n, f in enumerate(fan):
 
 # Exp3 (salt water, wind only) on 2018-10-01
 exp3 = Experiment('asist-windonly-salt')
+exp3.water_depth = 0.42
 exp_start_time = datetime(2018, 10, 1, 17, 20, 0)
 for n, f in enumerate(fan):
     start_time = exp_start_time + run_length * n
@@ -41,6 +45,7 @@ for n, f in enumerate(fan):
 
 # Exp4 (salt water, wind and swell) on 2018-10-01
 exp4 = Experiment('asist-wind-swell-salt')
+exp4.water_depth = 0.42
 exp_start_time = datetime(2018, 10, 1, 19, 54, 0)
 for n, f in enumerate(fan):
     start_time = exp_start_time + run_length * n
@@ -49,6 +54,7 @@ for n, f in enumerate(fan):
 
 # Exp5 (fresh water, flow distortion experiment) on 2018-10-02
 exp5 = Experiment('asist-flow-distortion')
+exp5.water_depth = 0.42
 exp_start_time = datetime(2018, 10, 2, 17, 56, 0)
 run_length = timedelta(seconds=120)
 for n, f in enumerate(fan):
@@ -58,6 +64,7 @@ for n, f in enumerate(fan):
 
 # Exp6 (fresh water, vertical profile, fan = 30 Hz) on 2018-10-02
 exp6 = Experiment('asist-vertical-profile')
+exp6.water_depth = 0.42
 exp_start_time = datetime(2018, 10, 2, 20, 50, 0)
 run_length = timedelta(seconds=120)
 heights = [0.07 + (0.05 * n) for n in range(10)]
@@ -70,6 +77,7 @@ for n, h in enumerate(heights):
 
 # Exp7 (fresh water, cross-tank profile, fan = 30 Hz) on 2018-10-04
 exp7 = Experiment('asist-crosstank-profile')
+exp7.water_depth = 0.42
 exp_start_time = datetime(2018, 10, 4, 19, 0, 0)
 run_length = timedelta(seconds=60)
 # from left to right looking downwind
@@ -80,9 +88,19 @@ for n, d in enumerate(cross_distances):
     start_time = exp_start_time + 2 * run_length * n
     end_time = start_time + run_length
     run = Run(start_time, end_time, fan=30)
-    run.pitot_height = 0.42
+    run.pitot_height = 0.29
     run.pitot_cross_distance = d
     exp7.add_run(run)
+
+# Exp8 (fresh water, no paddle, depth = 0.50) on 2018-11-26
+exp8 = Experiment('asist-flow-distortion')
+exp_start_time = datetime(2018, 11, 26, 20, 34, 0)
+run_length = timedelta(seconds=360)
+exp8.water_depth = 0.5
+for n, f in enumerate(fan):
+    start_time = exp_start_time + run_length * n
+    end_time = start_time + run_length
+    exp8.add_run(Run(start_time, end_time, fan=f))
 
 experiments = {
     'asist-windonly-fresh_warmup': exp0,
@@ -93,4 +111,5 @@ experiments = {
     'asist-flow-distortion': exp5,
     'asist-vertical-profile': exp6,
     'asist-crosstank-profile': exp7,
+    'asist-christian-shadowgraph': exp8,
 }
