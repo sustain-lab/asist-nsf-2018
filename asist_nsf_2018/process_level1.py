@@ -24,6 +24,77 @@ def get_data_path(data_name):
         raise KeyError('Set ' + data_name + '_DATA_PATH env variable to the path with ' + data_name + ' data')
 
 
+def get_experiment_time_series(time, data, exp):
+    """Returns time and data slice between 
+    experiment start and end times."""
+    t0, t1 = exp.runs[0].start_time, exp.runs[-1].end_time
+    mask = (time >= t0) & (time <= t1)
+    return time[mask], data[mask]
+
+
+def process_dp_to_level2():
+    """Processes pressure gradient into a NetCDF file."""
+    PRESSURE_DATA_PATH = get_data_path('PRESSURE')
+
+    exp_name = 'asist-christian-shadowgraph'
+    exp = experiments[exp_name]
+    
+    files = glob.glob(PRESSURE_DATA_PATH + '/TOA5_SUSTAINpresX4X2.pressure_229*.dat')
+    files.sort()
+    time, dp1, dp2 = read_pressure_from_toa5(files)
+
+    # remove offset from pressure
+    t0 = exp.runs[0].start_time
+    t1 = exp.runs[0].end_time - timedelta(seconds=60)
+    mask = (time >= t0) & (time <= t1)
+    dp2_offset = np.mean(dp2[mask])
+    for run in exp.runs:
+        run_mask = (time >= run.start_time) & (time <= run.end_time)
+        dp2[run_mask] -= dp2_offset
+
+    time, dp = get_experiment_time_series(time, dp2, exp)
+        
+    # fan frequency
+    fan = np.zeros(time.size)
+    for run in exp.runs:
+        run_mask = (time >= run.start_time) & (time <= run.end_time)
+        fan[run_mask] = run.fan
+
+    print('Writing ' + ncfile)
+
+    # distance between air pressure ports
+    # 14 panels, 0.77 m each, minus 2 cm on each end
+    dx = 14 * 0.77 - 0.04 
+
+    seconds = (date2num(time) - int(date2num(t0))) * 86400
+
+    ncfile = 'air-pressure_' + exp_name + '.nc'
+    with Dataset(ncfile, 'w', format='NETCDF4') as nc:
+
+        nc.createDimension('Time', size=0)
+        var = nc.createVariable('Time', 'f8', dimensions=('Time'))
+        var[:] = seconds
+        var.setncattr('name', 'Time in seconds of the day')
+        var.setncattr('units', 's')
+        var.setncattr('origin', t0.strftime('%Y-%m-%dT%H:%M:%S'))
+        var.setncattr('dx', dx)
+
+        var = nc.createVariable('fan', 'f4', dimensions=('Time'))
+        var[:] = fan
+        var.setncattr('name', 'Fan frequency')
+        var.setncattr('units', 'Hz')
+
+        var = nc.createVariable('dp', 'f4', dimensions=('Time'))
+        var[:] = dp
+        var.setncattr('name', 'Along-tank air pressure difference')
+        var.setncattr('units', 'Pa')
+
+        var = nc.createVariable('dpdx', 'f4', dimensions=('Time'))
+        var[:] = dp / dx
+        var.setncattr('name', 'Along-tank air pressure gradient')
+        var.setncattr('units', 'Pa / m')
+
+
 def process_hotfilm_to_level2():
     """Processes Hot film Labview files into NetCDF."""
     HOTFILM_DATA_PATH = get_data_path('HOTFILM')
