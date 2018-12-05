@@ -164,21 +164,34 @@ dpdx_c18 = - np.array(dpdx_c18) / (rhow * g)
 ### LEG data
 
 LEG_DATA_PATH = '/home/milan/Work/sustain/data/asist-nsf-2018/L1/LEG'
-mat = loadmat(LEG_DATA_PATH + '/LEG_asist-windonly-fresh.mat')
-eta = mat['eta_scaled'][:,0] * 1e-2
-start_time = datetime(2018, 9, 26, 18, 48, 54)
 dt = 1 / 60
-eta_time = np.array([start_time + n * timedelta(seconds=dt) 
-    for n in range(eta.size)])
 
-exp = experiments['asist-windonly-fresh']
+mat = loadmat(LEG_DATA_PATH + '/LEG_asist-windonly-fresh-warmup-1.mat')
+eta1 = mat['eta_scaled'][0,:] * 1e-2
+start_time = datetime(2018, 9, 24, 19, 10, 12, 330000)
+time1 = np.array([start_time + n * timedelta(seconds=dt) 
+    for n in range(eta1.size)])
 
-leg = []
+mat = loadmat(LEG_DATA_PATH + '/LEG_asist-windonly-fresh-warmup-2.mat')
+eta2 = mat['eta_interp'][0,:] * 1e-2
+start_time = datetime(2018, 9, 24, 19, 10, 12, 330000)
+time2 = np.array([start_time + n * timedelta(seconds=dt) 
+    for n in range(eta2.size)])
+
+exp = experiments['asist-windonly-fresh_warmup']
+
+leg1 = []
+leg2 = []
 for run in exp.runs[:-1]:
     t0 = run.start_time + timedelta(seconds=30)
     t1 = run.end_time - timedelta(seconds=30)
-    mask = (eta_time > t0) & (eta_time < t1)
-    leg.append(np.nanmean(eta[mask]))
+    mask = (time1 > t0) & (time1 < t1)
+    leg1.append(np.nanmean(eta1[mask]))
+    mask = (time2 > t0) & (time2 < t1)
+    leg2.append(np.nanmean(eta2[mask]))
+
+dx_leg = 5 * 0.77
+leg_slope = (np.array(leg2) - np.array(leg1)) / dx_leg
 
 ### HIDRAG data
 
@@ -275,11 +288,14 @@ taub_c18 = np.array([0] + list(taub))
 
 cd_d04 = (rhow * g * depth * (slope_d04 + dpdx) + dSdx_d04 - taub) / rhoa / (2 * U[1:])**2
 cd_c18 = (rhow * g * depth * (slope_c18 + dpdx_c18) + dSdx_c18 - taub_c18) / rhoa / (2 * U)**2
+cd_leg = (rhow * g * depth * (leg_slope + dpdx_c18) + dSdx_c18 - taub_c18) / rhoa / (2 * U)**2
+
 
 fig = plt.figure(figsize=(8, 6))
 ax = fig.add_subplot(111, ylim=(-5e-3, 1.5e-2), xlim=(0, 50))
 plt.plot(2 * U[1:], cd_d04, 'b-', marker='o', ms=5, label='D04')
-plt.plot(2 * U, cd_c18 - 0.006, 'r-', marker='o', ms=5, label='C18')
+plt.plot(2 * U, cd_c18, 'r-', marker='o', ms=5, label='C18')
+plt.plot(2 * U, cd_leg, 'r--', marker='o', ms=5, label='C18 LEG')
 plt.legend(loc='upper right', fancybox=True, shadow=True)
 plt.grid()
 plt.xlabel('Wind speed [m/s]')
