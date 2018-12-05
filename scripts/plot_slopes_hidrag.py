@@ -5,12 +5,14 @@ from asist.wave_probe import read_wave_probe_csv
 from asist.utility import running_mean
 from asist.pressure import read_pressure_from_netcdf
 import matplotlib.pyplot as plt
+from matplotlib.dates import num2date, date2num
 import numpy as np
 import os
 from scipy.io import loadmat
 from scipy.signal import detrend
 from datetime import datetime, timedelta
 from dispersion import w2k
+from netCDF4 import Dataset
 
 plt.rcParams.update({'font.size': 12})
 
@@ -134,6 +136,50 @@ fan, h6 = mean_water_height(eta6, exp, start_index)
 s3 = (h6 - h3) / dx_c18
 s4 = (h6 - h4) / dx_c18
 
+# air pressure gradient
+with Dataset(L2_DATA_PATH + '/air-pressure_asist-christian-shadowgraph.nc') as nc:
+    seconds = nc.variables['Time'][:]
+    seconds -= seconds[0]
+    origin = datetime.strptime(nc.variables['Time'].origin, '%Y-%m-%dT%H:%M:%S')
+    time_air = np.array([origin + timedelta(seconds=s) for s in seconds])
+    dpdx_air = nc.variables['dpdx'][:]
+    fan_air = nc.variables['fan'][:]
+
+exp = experiments['asist-christian-shadowgraph']
+
+dpdx_c18 = []
+for run in exp.runs[:-1]:
+    t0 = run.start_time + timedelta(seconds=30)
+    t1 = run.end_time - timedelta(seconds=30)
+    mask = (time_air > t0) & (time_air < t1)
+    dpdx_c18.append(np.mean(dpdx_air[mask]))
+
+rhow = 1000
+rhoa = 1.15
+g = 9.8
+depth = 0.42
+
+dpdx_c18 = - np.array(dpdx_c18) / (rhow * g)
+
+### LEG data
+
+LEG_DATA_PATH = '/home/milan/Work/sustain/data/asist-nsf-2018/L1/LEG'
+mat = loadmat(LEG_DATA_PATH + '/LEG_asist-windonly-fresh.mat')
+eta = mat['eta_scaled'][:,0] * 1e-2
+start_time = datetime(2018, 9, 26, 18, 48, 54)
+dt = 1 / 60
+eta_time = np.array([start_time + n * timedelta(seconds=dt) 
+    for n in range(eta.size)])
+
+exp = experiments['asist-windonly-fresh']
+
+leg = []
+for run in exp.runs[:-1]:
+    t0 = run.start_time + timedelta(seconds=30)
+    t1 = run.end_time - timedelta(seconds=30)
+    mask = (eta_time > t0) & (eta_time < t1)
+    leg.append(np.nanmean(eta[mask]))
+
 ### HIDRAG data
 
 # Location of probes from entrance to tank
@@ -182,6 +228,7 @@ ax = fig.add_subplot(111, xlim=(0, 25))
 plt.plot(U[1:], slope_d04, 'b-', marker='o', ms=5, label='D04 dh/dx')
 plt.plot(U[1:], dpdx, 'b-', marker='*', ms=8, label='D04 dp/dx')
 plt.plot(U, slope_c18, 'r-', marker='o', ms=5, label='C18 dh/dx')
+plt.plot(U[1:], dpdx_c18[1:], 'r-', marker='*', ms=8, label='C18 dp/dx')
 plt.plot([0, 50], [0, 0], 'k--')
 plt.legend(loc='upper left', fancybox=True, shadow=True)
 plt.grid()
@@ -222,25 +269,17 @@ plt.title('Radiation stress gradient $dS_{xx}/dx$ vs wind speed')
 plt.savefig('HIDRAG_dSdx.png', dpi=100)
 plt.close(fig)
 
-rhow = 1000
-rhoa = 1.15
-
 # Bottom stress from Brian
 taub = rhow * np.array([.0007, .0014, .0013, .0025, .0030, .0038, .0054, .0040, .0061, .01, .0052, 0.0046])**2
 taub_c18 = np.array([0] + list(taub))
-
-g = 9.8
-depth = 0.42
-
-dpdx_c18 = np.array([0] + list(dpdx))
 
 cd_d04 = (rhow * g * depth * (slope_d04 + dpdx) + dSdx_d04 - taub) / rhoa / (2 * U[1:])**2
 cd_c18 = (rhow * g * depth * (slope_c18 + dpdx_c18) + dSdx_c18 - taub_c18) / rhoa / (2 * U)**2
 
 fig = plt.figure(figsize=(8, 6))
-ax = fig.add_subplot(111, ylim=(-5e-3, 2e-2), xlim=(0, 50))
+ax = fig.add_subplot(111, ylim=(-5e-3, 1.5e-2), xlim=(0, 50))
 plt.plot(2 * U[1:], cd_d04, 'b-', marker='o', ms=5, label='D04')
-plt.plot(2 * U, cd_c18, 'r-', marker='o', ms=5, label='C18')
+plt.plot(2 * U, cd_c18 - 0.006, 'r-', marker='o', ms=5, label='C18')
 plt.legend(loc='upper right', fancybox=True, shadow=True)
 plt.grid()
 plt.xlabel('Wind speed [m/s]')
@@ -249,8 +288,6 @@ plt.plot([0, 50], [0, 0], 'k--')
 plt.title('Drag coefficient vs wind speed')
 plt.savefig('HIDRAG_cd.png', dpi=100)
 plt.close(fig)
-
-
 
 
 fig = plt.figure(figsize=(8, 6))
