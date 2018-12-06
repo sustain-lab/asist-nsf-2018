@@ -16,7 +16,7 @@ import os
 
 def get_data_path(data_name):
     """Gets the data path from the env variable."""
-    assert data_name in ['HOTFILM', 'IRGASON', 'PRESSURE'],\
+    assert data_name in ['LEG', 'HOTFILM', 'IRGASON', 'PRESSURE'],\
         data_name + ' is not available'
     try:
         return os.environ[data_name + '_DATA_PATH']

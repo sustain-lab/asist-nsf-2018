@@ -13,6 +13,7 @@ from scipy.signal import detrend
 from datetime import datetime, timedelta
 from dispersion import w2k
 from netCDF4 import Dataset
+from process_leg import leg1, leg2, leg_slope
 
 plt.rcParams.update({'font.size': 12})
 
@@ -161,38 +162,6 @@ depth = 0.42
 
 dpdx_c18 = - np.array(dpdx_c18) / (rhow * g)
 
-### LEG data
-
-LEG_DATA_PATH = '/home/milan/Work/sustain/data/asist-nsf-2018/L1/LEG'
-dt = 1 / 60
-
-mat = loadmat(LEG_DATA_PATH + '/LEG_asist-windonly-fresh-warmup-1.mat')
-eta1 = mat['eta_scaled'][0,:] * 1e-2
-start_time = datetime(2018, 9, 24, 19, 10, 12, 330000)
-time1 = np.array([start_time + n * timedelta(seconds=dt) 
-    for n in range(eta1.size)])
-
-mat = loadmat(LEG_DATA_PATH + '/LEG_asist-windonly-fresh-warmup-2.mat')
-eta2 = mat['eta_interp'][0,:] * 1e-2
-start_time = datetime(2018, 9, 24, 19, 10, 12, 330000)
-time2 = np.array([start_time + n * timedelta(seconds=dt) 
-    for n in range(eta2.size)])
-
-exp = experiments['asist-windonly-fresh_warmup']
-
-leg1 = []
-leg2 = []
-for run in exp.runs[:-1]:
-    t0 = run.start_time + timedelta(seconds=30)
-    t1 = run.end_time - timedelta(seconds=30)
-    mask = (time1 > t0) & (time1 < t1)
-    leg1.append(np.nanmean(eta1[mask]))
-    mask = (time2 > t0) & (time2 < t1)
-    leg2.append(np.nanmean(eta2[mask]))
-
-dx_leg = 5 * 0.77
-leg_slope = (np.array(leg2) - np.array(leg1)) / dx_leg
-
 ### HIDRAG data
 
 # Location of probes from entrance to tank
@@ -224,6 +193,8 @@ plt.plot(U[1:], LEG1, 'b--', marker='o', ms=5, label='D04, #1, 4.6 m')
 plt.plot(U[1:], LEG3, 'b-', marker='o', ms=5, label='D04, #2, 9.0 m')
 plt.plot(U, h4, 'r--', marker='o', ms=5, label='C18, #1, 6.0 m')
 plt.plot(U, h6, 'r-', marker='o', ms=5, label='C18, #2, 8.7 m')
+plt.plot(U, leg1, 'r--', marker='*', ms=10, label='C18, LEG1')
+plt.plot(U, leg2, 'r-', marker='*', ms=10, label='C18, LEG2')
 plt.plot([0, 50], [0, 0], 'k--')
 plt.legend(loc='lower left', fancybox=True, shadow=True)
 plt.grid()
@@ -241,6 +212,7 @@ ax = fig.add_subplot(111, xlim=(0, 25))
 plt.plot(U[1:], slope_d04, 'b-', marker='o', ms=5, label='D04 dh/dx')
 plt.plot(U[1:], dpdx, 'b-', marker='*', ms=8, label='D04 dp/dx')
 plt.plot(U, slope_c18, 'r-', marker='o', ms=5, label='C18 dh/dx')
+plt.plot(U, leg_slope, 'r-', marker='s', ms=5, label='C18 LEG dh/dx')
 plt.plot(U[1:], dpdx_c18[1:], 'r-', marker='*', ms=8, label='C18 dp/dx')
 plt.plot([0, 50], [0, 0], 'k--')
 plt.legend(loc='upper left', fancybox=True, shadow=True)
@@ -295,8 +267,8 @@ fig = plt.figure(figsize=(8, 6))
 ax = fig.add_subplot(111, ylim=(-5e-3, 1.5e-2), xlim=(0, 50))
 plt.plot(2 * U[1:], cd_d04, 'b-', marker='o', ms=5, label='D04')
 plt.plot(2 * U, cd_c18, 'r-', marker='o', ms=5, label='C18')
-plt.plot(2 * U, cd_leg, 'r--', marker='o', ms=5, label='C18 LEG')
-plt.legend(loc='upper right', fancybox=True, shadow=True)
+plt.plot(2 * U, cd_leg, 'r-', marker='*', ms=10, label='C18 LEG')
+plt.legend(loc='lower right', fancybox=True, shadow=True)
 plt.grid()
 plt.xlabel('Wind speed [m/s]')
 plt.ylabel(r'$C_{D10}$')
