@@ -13,6 +13,9 @@ from netCDF4 import Dataset
 import numpy as np
 import os
 
+def remove_drift(p, t):
+    return p - (p[-1] - p[0]) * (t - t[0]) / (t[-1] - t[0])
+
 
 def get_data_path(data_name):
     """Gets the data path from the env variable."""
@@ -270,6 +273,7 @@ def process_irgason_to_level2():
         nc.close()
 
 
+
 def process_pitot_to_level2():
     """Processes MKS pressure difference from TOA5 files 
     into pitot tube velocity and writes it to NetCDF."""
@@ -277,7 +281,6 @@ def process_pitot_to_level2():
     PRESSURE_DATA_PATH = get_data_path('PRESSURE')
 
     experiments_to_process = [
-        'asist-windonly-fresh_warmup',
         'asist-windonly-fresh', 
         'asist-wind-swell-fresh', 
         'asist-windonly-salt', 
@@ -291,8 +294,8 @@ def process_pitot_to_level2():
     # remove offset from pressure before computing velocity
     for exp_name in experiments_to_process:
         exp = experiments[exp_name]
-        t0 = exp.runs[0].start_time
-        t1 = exp.runs[0].end_time - timedelta(seconds=60)
+        t0 = exp.runs[0].start_time + timedelta(seconds=30)
+        t1 = exp.runs[0].end_time - timedelta(seconds=30)
         mask = (time >= t0) & (time <= t1)
         dp1_offset = np.mean(dp1[mask])
         dp2_offset = np.mean(dp2[mask])
@@ -302,6 +305,18 @@ def process_pitot_to_level2():
             dp2[run_mask] -= dp2_offset
 
     dp1[dp1 < 0] = 0
+
+    # now remove offset due to pressure drift
+    # (avoid swell experiments in this step)
+    for exp_name in experiments_to_process:
+        if 'swell' in exp_name:
+            continue
+        exp = experiments[exp_name]
+        t0 = exp.runs[0].start_time
+        t1 = exp.runs[-1].end_time
+        mask = (time >= t0) & (time <= t1)
+        dp1[mask] = remove_drift(dp1[mask], date2num(time[mask]))
+
     air_density = 1.1554 # at 30 deg. C and 90% RH
     u = pitot_velocity(dp1, air_density)
 
